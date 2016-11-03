@@ -3,6 +3,10 @@
 
 #include <Arduino.h>
 
+#ifdef ARDUINO_ARCH_AVR
+#error The library is not compatible with AVR boards
+#endif
+
 #ifdef ARDUINO_ARCH_SAMD
 #include "RTCZero.h"
 #endif

@@ -43,14 +43,13 @@ void ArduinoLowPowerClass::setAlarmIn(uint32_t millis) {
 
 	uint32_t now = rtc.getEpoch();
 	rtc.setAlarmEpoch(now + millis/1000);
-	rtc.enableAlarm(rtc.MATCH_YYMMDDHHMMSS);
+	rtc.enableAlarm(rtc.MATCH_HHMMSS);
 }
 
 void ArduinoLowPowerClass::attachInterruptWakeup(uint32_t pin, voidFuncPtr callback, uint32_t mode) {
 
 	if (pin > PINS_COUNT) {
 		// check for external wakeup sources
-		// only enables the wakeup bit, no callback
 		// RTC library should call this API to enable the alarm subsystem
 		switch (pin) {
 			case RTC_ALARM_WAKEUP:
@@ -65,9 +64,9 @@ void ArduinoLowPowerClass::attachInterruptWakeup(uint32_t pin, voidFuncPtr callb
 	if (in == NOT_AN_INTERRUPT || in == EXTERNAL_INT_NMI)
     		return;
 
+	pinMode(pin, INPUT_PULLUP);
 	attachInterrupt(pin, callback, mode);
 
-#if 0
 	// enable EIC clock
 	GCLK->CLKCTRL.bit.CLKEN = 0; //disable GCLK module
 	while (GCLK->STATUS.bit.SYNCBUSY);
@@ -80,13 +79,13 @@ void ArduinoLowPowerClass::attachInterruptWakeup(uint32_t pin, voidFuncPtr callb
 
 	GCLK->GENCTRL.bit.RUNSTDBY = 1;  //GCLK6 run standby
 	while (GCLK->STATUS.reg & GCLK_STATUS_SYNCBUSY);
-#endif
 
 	// Enable wakeup capability on pin in case being used during sleep
 	EIC->WAKEUP.reg |= (1 << in);
 
 	/* Errata: Make sure that the Flash does not power all the way down
      	* when in sleep mode. */
+
 	NVMCTRL->CTRLB.bit.SLEEPPRM = NVMCTRL_CTRLB_SLEEPPRM_DISABLED_Val;
 }
 
