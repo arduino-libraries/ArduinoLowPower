@@ -89,6 +89,6 @@ void ArduinoLowPowerClass::attachInterruptWakeup(uint32_t pin, voidFuncPtr callb
 	NVMCTRL->CTRLB.bit.SLEEPPRM = NVMCTRL_CTRLB_SLEEPPRM_DISABLED_Val;
 }
 
-#endif
-
 ArduinoLowPowerClass LowPower;
+
+#endif
