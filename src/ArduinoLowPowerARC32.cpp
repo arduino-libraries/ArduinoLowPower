@@ -25,6 +25,9 @@
  * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
+ * 
+ * code ported from https://github.com/bigdinotech/Arduino101Power/
+ *
  */
 
 
@@ -34,298 +37,158 @@
 
 #include "WInterrupts.h"
 
-/* Sensor Subsystem sleep operand definition.
- * Only a subset applies as internal sensor RTC
- * is not available.
- *
- *  OP | Core | Timers | RTC
- * 000 |    0 |      1 |   1 <-- used for SS1
- * 001 |    0 |      0 |   1
- * 010 |    0 |      1 |   0
- * 011 |    0 |      0 |   0 <-- used for SS2
- * 100 |    0 |      0 |   0
- * 101 |    0 |      0 |   0
- * 110 |    0 |      0 |   0
- * 111 |    0 |      0 |   0
- *
- * sleep opcode argument:
- *  - [7:5] : Sleep Operand
- *  - [4]   : Interrupt enable
- *  - [3:0] : Interrupt threshold value
- */
-#define QM_SS_SLEEP_MODE_CORE_OFF (0x0)
-#define QM_SS_SLEEP_MODE_CORE_OFF_TIMER_OFF (0x20)
-#define QM_SS_SLEEP_MODE_CORE_TIMERS_RTC_OFF (0x60)
-
-void ArduinoLowPowerClass::power_soc_sleep()
+static void PM_InterruptHandler(void)
 {
-	/* Go to sleep */
-	QM_SCSS_PMU->slp_cfg &= ~QM_SCSS_SLP_CFG_LPMODE_EN;
-	QM_SCSS_PMU->pm1c |= QM_SCSS_PM1C_SLPEN;
+    *(uint32_t*)RTC_CCR |= 0xFFFFFFFE;
+    uint32_t rtc_eoi = *(uint32_t*)RTC_EOI; //clear match interrupt
+    LowPower.wakeFromSleepCallback();
 }
 
-void ArduinoLowPowerClass::power_soc_deep_sleep()
+void ArduinoLowPowerClass::idle()
 {
-	/* Switch to linear regulators.
-	 * For low power deep sleep mode, it is a requirement that the platform
-	 * voltage regulators are not in switching mode.
-	 */
-	 /*
-	vreg_plat1p8_set_mode(VREG_MODE_LINEAR);
-	vreg_plat3p3_set_mode(VREG_MODE_LINEAR);
-	*/
+  turnOffUSB();
+  
+  //switch from external crystal oscillator to internal hybrid oscilator
+  switchToHybridOscillator();
+  
+  //Set system clock to the RTC Crystal Oscillator
+  uint32_t current_val = *(uint32_t*)CCU_SYS_CLK_CTL;
+  *(uint32_t*)CCU_SYS_CLK_CTL = current_val & 0xFFFFFFFE;
 
-	/* Enable low power sleep mode */
-	QM_SCSS_PMU->slp_cfg |= QM_SCSS_SLP_CFG_LPMODE_EN;
-	QM_SCSS_PMU->pm1c |= QM_SCSS_PM1C_SLPEN;
+  //Powerdown hybrid oscillator
+  current_val = *(uint32_t*)OSC0_CFG1;
+  *(uint32_t*)OSC0_CFG1 = current_val | 0x00000004; 
 }
 
-void ArduinoLowPowerClass::ss_power_soc_lpss_enable()
+void ArduinoLowPowerClass::idle(uint32_t duration)
 {
-	uint32_t creg_mst0_ctrl = 0;
-
-	creg_mst0_ctrl = __builtin_arc_lr(QM_SS_CREG_BASE);
-
-	/*
-	 * Clock gate the sensor peripherals at CREG level.
-	 * This clock gating is independent of the peripheral-specific clock
-	 * gating provided in ss_clk.h .
-	 */
-	creg_mst0_ctrl |= (QM_SS_IO_CREG_MST0_CTRL_ADC_CLK_GATE |
-			   QM_SS_IO_CREG_MST0_CTRL_I2C1_CLK_GATE |
-			   QM_SS_IO_CREG_MST0_CTRL_I2C0_CLK_GATE |
-			   QM_SS_IO_CREG_MST0_CTRL_SPI1_CLK_GATE |
-			   QM_SS_IO_CREG_MST0_CTRL_SPI0_CLK_GATE);
-
-	__builtin_arc_sr(creg_mst0_ctrl, QM_SS_CREG_BASE);
-
-	QM_SCSS_CCU->ccu_lp_clk_ctl |= QM_SCSS_CCU_SS_LPS_EN;
+    idle();
+    delayTicks(millisToRTCTicks(duration));
+    wakeFromDoze();
 }
 
-void ArduinoLowPowerClass::ss_power_soc_lpss_disable()
+void ArduinoLowPowerClass::wakeFromDoze()
 {
-	uint32_t creg_mst0_ctrl = 0;
+  //Powerup hybrid oscillator
+  uint32_t current_val = *(uint32_t*)OSC0_CFG1;
+  *(uint32_t*)OSC0_CFG1 = current_val & 0xFFFFFFFB;
+   
+  //Set system clock to the Hybrid Oscillator
+  current_val = *(uint32_t*)CCU_SYS_CLK_CTL;
+  *(uint32_t*)CCU_SYS_CLK_CTL = current_val | 0x00000001;
 
-	creg_mst0_ctrl = __builtin_arc_lr(QM_SS_CREG_BASE);
-
-	/*
-	 * Restore clock gate of the sensor peripherals at CREG level.
-	 * CREG is not used anywhere else so we can safely restore
-	 * the configuration to its POR default.
-	 */
-	creg_mst0_ctrl &= ~(QM_SS_IO_CREG_MST0_CTRL_ADC_CLK_GATE |
-			    QM_SS_IO_CREG_MST0_CTRL_I2C1_CLK_GATE |
-			    QM_SS_IO_CREG_MST0_CTRL_I2C0_CLK_GATE |
-			    QM_SS_IO_CREG_MST0_CTRL_SPI1_CLK_GATE |
-			    QM_SS_IO_CREG_MST0_CTRL_SPI0_CLK_GATE);
-
-	__builtin_arc_sr(creg_mst0_ctrl, QM_SS_CREG_BASE);
-
-	QM_SCSS_CCU->ccu_lp_clk_ctl &= ~QM_SCSS_CCU_SS_LPS_EN;
+  //switch back to the external crystal oiscillator
+  void switchToCrystalOscillator();
+  
+  turnOnUSB();
 }
 
-/* Enter SS1 :
- * SLEEP + sleep operand
- * __builtin_arc_sleep is not used here as it does not propagate sleep operand.
- */
-void ArduinoLowPowerClass::ss_power_cpu_ss1(const ss_power_cpu_ss1_mode_t mode)
+void ArduinoLowPowerClass::sleep()
 {
-	/* The sensor cannot be woken up with an edge triggered
-	 * interrupt from the RTC and the AON Counter.
-	 * Switch to Level triggered interrupts and restore
-	 * the setting when waking up.
-	 */
-	__builtin_arc_sr(IRQ_RTC_INTR, QM_SS_AUX_IRQ_SELECT);
-	__builtin_arc_sr(QM_SS_IRQ_LEVEL_SENSITIVE, QM_SS_AUX_IRQ_TRIGGER);
-
-	__builtin_arc_sr(QM_IRQ_AONPT_0_INT_VECTOR, QM_SS_AUX_IRQ_SELECT);
-	__builtin_arc_sr(QM_SS_IRQ_LEVEL_SENSITIVE, QM_SS_AUX_IRQ_TRIGGER);
-
-	/* Enter SS1 */
-	switch (mode) {
-	case SS_POWER_CPU_SS1_TIMER_OFF:
-		__asm__ __volatile__(
-		    "sleep %0"
-		    :
-		    : "i"(QM_SS_SLEEP_MODE_CORE_OFF_TIMER_OFF));
-		break;
-	case SS_POWER_CPU_SS1_TIMER_ON:
-	default:
-		__asm__ __volatile__("sleep %0"
-				     :
-				     : "i"(QM_SS_SLEEP_MODE_CORE_OFF));
-		break;
-	}
-
-	/* Restore the RTC and AONC to edge interrupt after when waking up. */
-	__builtin_arc_sr(QM_IRQ_RTC_0_INT_VECTOR, QM_SS_AUX_IRQ_SELECT);
-	__builtin_arc_sr(QM_SS_IRQ_EDGE_SENSITIVE, QM_SS_AUX_IRQ_TRIGGER);
-
-	__builtin_arc_sr(QM_IRQ_AONPT_0_INT_VECTOR, QM_SS_AUX_IRQ_SELECT);
-	__builtin_arc_sr(QM_SS_IRQ_EDGE_SENSITIVE, QM_SS_AUX_IRQ_TRIGGER);
+   turnOffUSB();
+   //*(uint32_t*)SLP_CFG &= 0xFFFFFEFF;
+   
+   x86_C2Request();
+   isSleeping = true;
+   //*(uint32_t*)CCU_LP_CLK_CTL = (*(uint32_t*)CCU_LP_CLK_CTL) | 0x00000002;
+   //uint32_t c2 = *(uint32_t*)P_LVL2;
+   *(uint32_t*)PM1C |= 0x00002000;
 }
 
-/* Enter SS2 :
- * SLEEP + sleep operand
- * __builtin_arc_sleep is not used here as it does not propagate sleep operand.
- */
-void ArduinoLowPowerClass::ss_power_cpu_ss2(void)
+void ArduinoLowPowerClass::sleep(uint32_t duration)
 {
-	/* The sensor cannot be woken up with an edge triggered
-	 * interrupt from the RTC and the AON Counter.
-	 * Switch to Level triggered interrupts and restore
-	 * the setting when waking up.
-	 */
-	__builtin_arc_sr(QM_IRQ_RTC_0_INT_VECTOR, QM_SS_AUX_IRQ_SELECT);
-	__builtin_arc_sr(QM_SS_IRQ_LEVEL_SENSITIVE, QM_SS_AUX_IRQ_TRIGGER);
-
-	__builtin_arc_sr(QM_IRQ_AONPT_0_INT_VECTOR, QM_SS_AUX_IRQ_SELECT);
-	__builtin_arc_sr(QM_SS_IRQ_LEVEL_SENSITIVE, QM_SS_AUX_IRQ_TRIGGER);
-
-	/* Enter SS2 */
-	__asm__ __volatile__("sleep %0"
-			     :
-			     : "i"(QM_SS_SLEEP_MODE_CORE_TIMERS_RTC_OFF));
-
-	/* Restore the RTC and AONC to edge interrupt after when waking up. */
-	__builtin_arc_sr(QM_IRQ_RTC_0_INT_VECTOR, QM_SS_AUX_IRQ_SELECT);
-	__builtin_arc_sr(QM_SS_IRQ_EDGE_SENSITIVE, QM_SS_AUX_IRQ_TRIGGER);
-
-	__builtin_arc_sr(QM_IRQ_AONPT_0_INT_VECTOR, QM_SS_AUX_IRQ_SELECT);
-	__builtin_arc_sr(QM_SS_IRQ_EDGE_SENSITIVE, QM_SS_AUX_IRQ_TRIGGER);
+    setRTCCMR(duration);
+    enableRTCInterrupt();
+    sleep();
 }
 
-/* FIXME: use a .global symbol in linker for arc_restore_addr */
-uint32_t arc_restore_addr;
-uint32_t cpu_context[33];
-void ArduinoLowPowerClass::ss_power_soc_sleep_restore(void)
+void ArduinoLowPowerClass::deepSleep()
 {
-	/*
-	 * Save sensor restore trap address.
-	 * The first parameter in this macro represents the label defined in
-	 * the qm_ss_restore_context() macro, which is actually the restore
-	 * trap address.
-	 */
-	qm_ss_set_resume_vector(sleep_restore_trap, arc_restore_addr);
-
-	/* Save ARC execution context. */
-	qm_ss_save_context(cpu_context);
-
-	/* Set restore flags. */
-	power_soc_set_ss_restore_flag();
-
-	/* Enter sleep. */
-	power_soc_sleep();
-
-	/*
-	 * Restore sensor execution context.
-	 * The sensor startup code will jump to this location after waking up
-	 * from sleep. The restore trap address is the label defined in the
-	 * macro and the label is exposed here through the first parameter.
-	 */
-	qm_ss_restore_context(sleep_restore_trap, cpu_context);
+   turnOffUSB();
+   
+   x86_C2Request();
+   isSleeping = true;
+   *(uint32_t*)CCU_LP_CLK_CTL  |= 0x00000001;
+   //uint32_t c2 = *(uint32_t*)P_LVL2;
+   *(uint32_t*)PM1C |= 0x00002000;
 }
-void ArduinoLowPowerClass::ss_power_soc_deep_sleep_restore(void)
+
+void ArduinoLowPowerClass::deepSleep(uint32_t duration)
 {
-	/*
-	 * Save sensor restore trap address.
-	 * The first parameter in this macro represents the label defined in
-	 * the qm_ss_restore_context() macro, which is actually the restore
-	 * trap address.
-	 */
-	qm_ss_set_resume_vector(deep_sleep_restore_trap, arc_restore_addr);
-
-	/* Save ARC execution context. */
-	qm_ss_save_context(cpu_context);
-
-	/* Set restore flags. */
-	power_soc_set_ss_restore_flag();
-
-	/* Enter sleep. */
-	power_soc_deep_sleep();
-
-	/*
-	 * Restore sensor execution context.
-	 * The sensor startup code will jump to this location after waking up
-	 * from sleep. The restore trap address is the label defined in the
-	 * macro and the label is exposed here through the first parameter.
-	 */
-	qm_ss_restore_context(deep_sleep_restore_trap, cpu_context);
+    setRTCCMR(duration);
+    enableRTCInterrupt();
+    deepSleep();
 }
 
-void ArduinoLowPowerClass::ss_power_sleep_wait(void)
+void ArduinoLowPowerClass::switchToHybridOscillator()
 {
-	/*
-	 * Save sensor restore trap address.
-	 * The first parameter in this macro represents the label defined in
-	 * the qm_ss_restore_context() macro, which is actually the restore
-	 * trap address.
-	 */
-	qm_ss_set_resume_vector(sleep_restore_trap, arc_restore_addr);
-
-	/* Save ARC execution context. */
-	qm_ss_save_context(cpu_context);
-
-	/* Set restore flags. */
-	power_soc_set_ss_restore_flag();
-
-	/* Enter SS1 and stay in it until sleep and wake-up. */
-	while (1) {
-		ss_power_cpu_ss1(SS_POWER_CPU_SS1_TIMER_ON);
-	}
-
-	/*
-	 * Restore sensor execution context.
-	 * The sensor startup code will jump to this location after waking up
-	 * from sleep. The restore trap address is the label defined in the
-	 * macro and the label is exposed here through the first parameter.
-	 */
-	qm_ss_restore_context(sleep_restore_trap, cpu_context);
+    //read trim value from OTP
+    uint32_t trimMask = *(uint16_t*)OSCTRIM_ADDR << 20;
+    *(uint32_t*)OSC0_CFG1 = 0x00000002 | trimMask;  //switch to internal oscillator using trim value from OTP
 }
 
-void ArduinoLowPowerClass::power_soc_set_ss_restore_flag(void)
+void ArduinoLowPowerClass::switchToCrystalOscillator()
 {
-	QM_SCSS_GP->gps0 |= BIT(QM_GPS0_BIT_SENSOR_WAKEUP);
+    *(uint32_t*)OSC0_CFG1 = 0x00070009;
 }
 
-void ArduinoLowPowerClass::idle() {
-	ss_power_cpu_ss1(SS_POWER_CPU_SS1_TIMER_ON);
+inline void ArduinoLowPowerClass::wakeFromSleepCallback(void)
+{
+    if(pmCB != NULL)
+        pmCB();
 }
 
-void ArduinoLowPowerClass::idle(uint32_t millis) {
-	setAlarmIn(millis);
-	idle();
+void ArduinoLowPowerClass::attachWakeInterruptRTC(void (*userCallBack)())
+{
+    pmCB = userCallBack;
 }
 
-void ArduinoLowPowerClass::sleep() {
-	ss_power_soc_lpss_enable();
-	//ss_power_cpu_ss2();
-	power_soc_deep_sleep();
-	ss_power_soc_lpss_disable();
+//Privates
+
+void ArduinoLowPowerClass::turnOffUSB()
+{
+    *(uint32_t*)USB_PHY_CFG0 |= 0x00000001; 
 }
 
-void ArduinoLowPowerClass::sleep(uint32_t millis) {
-	setAlarmIn(millis);
-	sleep();
+void ArduinoLowPowerClass::turnOnUSB()
+{
+    *(uint32_t*)USB_PHY_CFG0 &= 0xFFFFFFFE;
 }
 
-void ArduinoLowPowerClass::deepSleep() {
-	sleep();
+void ArduinoLowPowerClass::setRTCCMR(int milliseconds)
+{
+    *(uint32_t*)RTC_CMR = readRTC_CCVR() + millisToRTCTicks(milliseconds);
+    //*(uint32_t*)RTC_CMR = readRTC_CCVR() + milliseconds;
 }
 
-void ArduinoLowPowerClass::deepSleep(uint32_t millis) {
-	sleep(millis);
+uint32_t ArduinoLowPowerClass::readRTC_CCVR()
+{
+    return *(uint32_t*)RTC_CCVR;
 }
 
-void ArduinoLowPowerClass::setAlarmIn(uint32_t millis) {
+uint32_t ArduinoLowPowerClass::millisToRTCTicks(int milliseconds)
+{
+    return (uint32_t)((double)milliseconds*32.768);
+}
 
-	//if (!rtc.isConfigured()) {
-	//	attachInterruptWakeup(RTC_ALARM_WAKEUP, NULL, 0);
-	//}
+void ArduinoLowPowerClass::enableRTCInterrupt()
+{
+    *(uint32_t*)RTC_MASK_INT &= 0xFFFFFFFF;
+    *(uint32_t*)RTC_CCR |= 0x00000001;
+    *(uint32_t*)RTC_CCR &= 0xFFFFFFFD;
+    interrupt_disable(IRQ_RTC_INTR);
+    interrupt_connect(IRQ_RTC_INTR , &PM_InterruptHandler);
+    interrupt_enable(IRQ_RTC_INTR);
+}
 
-	//uint32_t now = rtc.getEpoch();
-	//rtc.setAlarmEpoch(now + millis/1000);
-	//rtc.enableAlarm(rtc.MATCH_HHMMSS);
+void ArduinoLowPowerClass::x86_C2Request()
+{
+    switchToHybridOscillator();
+    //set the CCU_C2_LP_EN bit
+    *(uint32_t*)CCU_LP_CLK_CTL = (*(uint32_t*)CCU_LP_CLK_CTL) | 0x00000002;
+    //request for the x86 core go into C2 sleep
+    volatile uint32_t c2 = *(volatile uint32_t*)P_LVL2;
+ 
 }
 
 void ArduinoLowPowerClass::attachInterruptWakeup(uint32_t pin, voidFuncPtr callback, uint32_t mode) {
@@ -337,8 +200,8 @@ void ArduinoLowPowerClass::attachInterruptWakeup(uint32_t pin, voidFuncPtr callb
 		// RTC library should call this API to enable the alarm subsystem
 		switch (pin) {
 			case RTC_ALARM_WAKEUP:
-				//rtc.begin();
-				//rtc.attachInterrupt(callback);
+				attachWakeInterruptRTC(callback);
+				break;
 			case RESET_BUTTON_WAKEUP:
 				gpio_cfg_data_t pin_cfg = {
 					.gpio_type = GPIO_INTERRUPT,
@@ -351,6 +214,8 @@ void ArduinoLowPowerClass::attachInterruptWakeup(uint32_t pin, voidFuncPtr callb
 				soc_gpio_deconfig(SOC_GPIO_AON, 0);
 				/* set RESET GPIO button to be an input */
 				soc_gpio_set_config(SOC_GPIO_AON, 0, &pin_cfg);
+				SET_PIN_PULLUP(32*3 + 8, 1);
+				break;
 		}
 		return;
 	}
