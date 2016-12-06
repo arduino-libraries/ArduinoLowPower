@@ -15,7 +15,13 @@
 #include "RTCZero.h"
 #endif
 
+#if defined(ARDUINO_SAMD_TIAN)
+// add here any board with companion chip which can be woken up
+#define BOARD_HAS_COMPANION_CHIP
+#endif
+
 //typedef void (*voidFuncPtr)( void ) ;
+typedef void (*onOffFuncPtr)( bool ) ;
 
 class ArduinoLowPowerClass {
 	public:
@@ -38,6 +44,18 @@ class ArduinoLowPowerClass {
 		}
 
 		void attachInterruptWakeup(uint32_t pin, voidFuncPtr callback, uint32_t mode);
+
+		#ifdef BOARD_HAS_COMPANION_CHIP
+		void companionLowPowerCallback(onOffFuncPtr callback) {
+			companionSleepCB = callback;
+		}
+		void companionSleep() {
+			companionSleepCB(true);
+		}
+		void companionWakeup() {
+			companionSleepCB(false);
+		}
+		#endif
 
 		#ifdef __ARDUINO_ARC__
 		void wakeFromSleepCallback(void);
@@ -74,6 +92,7 @@ class ArduinoLowPowerClass {
 		#define RTC_ALARM_WAKEUP	0xFF
 		#define RESET_BUTTON_WAKEUP	0xFE
 		#endif
+		void (*companionSleepCB)(bool);
 };
 
 extern ArduinoLowPowerClass LowPower;
