@@ -33,21 +33,23 @@
 
 #include "ArduinoLowPower.h"
 
-#ifdef ARDUINO_ARCH_ARC32
+#ifdef __ARDUINO_ARC__
 
-#include "WInterrupts.h"
+uint32_t arc_restore_addr;
+uint32_t cpu_context[33];
 
 static void PM_InterruptHandler(void)
 {
-    *(uint32_t*)RTC_CCR |= 0xFFFFFFFE;
-    uint32_t rtc_eoi = *(uint32_t*)RTC_EOI; //clear match interrupt
-    LowPower.wakeFromSleepCallback();
+  unsigned int flags = interrupt_lock();
+  LowPower.wakeFromDoze();
+  LowPower.wakeFromSleepCallback();
+  interrupt_unlock(flags);
 }
 
 void ArduinoLowPowerClass::idle()
 {
   turnOffUSB();
-  
+  dozing = true;
   //switch from external crystal oscillator to internal hybrid oscilator
   switchToHybridOscillator();
   
@@ -62,9 +64,9 @@ void ArduinoLowPowerClass::idle()
 
 void ArduinoLowPowerClass::idle(uint32_t duration)
 {
-    idle();
-    delayTicks(millisToRTCTicks(duration));
-    wakeFromDoze();
+  idle();
+  delayTicks(millisToRTCTicks(duration));
+  wakeFromDoze();
 }
 
 void ArduinoLowPowerClass::wakeFromDoze()
@@ -72,158 +74,273 @@ void ArduinoLowPowerClass::wakeFromDoze()
   //Powerup hybrid oscillator
   uint32_t current_val = *(uint32_t*)OSC0_CFG1;
   *(uint32_t*)OSC0_CFG1 = current_val & 0xFFFFFFFB;
-   
+
   //Set system clock to the Hybrid Oscillator
   current_val = *(uint32_t*)CCU_SYS_CLK_CTL;
   *(uint32_t*)CCU_SYS_CLK_CTL = current_val | 0x00000001;
 
-  //switch back to the external crystal oiscillator
-  void switchToCrystalOscillator();
-  
+  //switch back to the external crystal oscillator
+  switchToCrystalOscillator();
+
   turnOnUSB();
+
+  dozing = false;
 }
 
 void ArduinoLowPowerClass::sleep()
 {
-   turnOffUSB();
-   //*(uint32_t*)SLP_CFG &= 0xFFFFFEFF;
-   
-   x86_C2Request();
-   isSleeping = true;
-   //*(uint32_t*)CCU_LP_CLK_CTL = (*(uint32_t*)CCU_LP_CLK_CTL) | 0x00000002;
-   //uint32_t c2 = *(uint32_t*)P_LVL2;
-   *(uint32_t*)PM1C |= 0x00002000;
+  uint32_t creg_mst0_ctrl = 0;
+  creg_mst0_ctrl = __builtin_arc_lr(QM_SS_CREG_BASE);
+
+  /*
+  * Clock gate the sensor peripherals at CREG level.
+  * This clock gating is independent of the peripheral-specific clock
+  * gating provided in ss_clk.h .
+  */
+  creg_mst0_ctrl |= (QM_SS_IO_CREG_MST0_CTRL_ADC_CLK_GATE |
+   QM_SS_IO_CREG_MST0_CTRL_I2C1_CLK_GATE |
+  QM_SS_IO_CREG_MST0_CTRL_I2C0_CLK_GATE |
+  QM_SS_IO_CREG_MST0_CTRL_SPI1_CLK_GATE |
+  QM_SS_IO_CREG_MST0_CTRL_SPI0_CLK_GATE);
+
+  __builtin_arc_sr(creg_mst0_ctrl, QM_SS_CREG_BASE);
+  x86_C2LPRequest();
+
+  idle();
+
+    __asm__ __volatile__(
+       "sleep %0"
+       :
+       : "i"(QM_SS_SLEEP_MODE_CORE_OFF));
+
+  creg_mst0_ctrl &= ~(QM_SS_IO_CREG_MST0_CTRL_ADC_CLK_GATE |
+         QM_SS_IO_CREG_MST0_CTRL_I2C1_CLK_GATE |
+         QM_SS_IO_CREG_MST0_CTRL_I2C0_CLK_GATE |
+         QM_SS_IO_CREG_MST0_CTRL_SPI1_CLK_GATE |
+         QM_SS_IO_CREG_MST0_CTRL_SPI0_CLK_GATE);
+
+  __builtin_arc_sr(creg_mst0_ctrl, QM_SS_CREG_BASE);
 }
 
 void ArduinoLowPowerClass::sleep(uint32_t duration)
 {
-    setRTCCMR(duration);
-    enableRTCInterrupt();
-    sleep();
+  enableAONPTimerInterrrupt(duration);
+  sleep();
 }
 
 void ArduinoLowPowerClass::deepSleep()
 {
-   turnOffUSB();
-   
-   x86_C2Request();
-   isSleeping = true;
-   *(uint32_t*)CCU_LP_CLK_CTL  |= 0x00000001;
-   //uint32_t c2 = *(uint32_t*)P_LVL2;
-   *(uint32_t*)PM1C |= 0x00002000;
+  sleep();
 }
 
 void ArduinoLowPowerClass::deepSleep(uint32_t duration)
 {
-    setRTCCMR(duration);
-    enableRTCInterrupt();
-    deepSleep();
-}
-
-void ArduinoLowPowerClass::switchToHybridOscillator()
-{
-    //read trim value from OTP
-    uint32_t trimMask = *(uint16_t*)OSCTRIM_ADDR << 20;
-    *(uint32_t*)OSC0_CFG1 = 0x00000002 | trimMask;  //switch to internal oscillator using trim value from OTP
-}
-
-void ArduinoLowPowerClass::switchToCrystalOscillator()
-{
-    *(uint32_t*)OSC0_CFG1 = 0x00070009;
+  sleep(duration);
 }
 
 inline void ArduinoLowPowerClass::wakeFromSleepCallback(void)
 {
-    if(pmCB != NULL)
-        pmCB();
-}
-
-void ArduinoLowPowerClass::attachWakeInterruptRTC(void (*userCallBack)())
-{
-    pmCB = userCallBack;
+  if(pmCB != NULL)
+      pmCB();
 }
 
 //Privates
 
 void ArduinoLowPowerClass::turnOffUSB()
 {
-    *(uint32_t*)USB_PHY_CFG0 |= 0x00000001; 
+  *(uint32_t*)USB_PHY_CFG0 |= 0x00000001;
 }
 
 void ArduinoLowPowerClass::turnOnUSB()
 {
-    *(uint32_t*)USB_PHY_CFG0 &= 0xFFFFFFFE;
+  *(uint32_t*)USB_PHY_CFG0 &= 0xFFFFFFFE;
 }
 
-void ArduinoLowPowerClass::setRTCCMR(int milliseconds)
+void ArduinoLowPowerClass::switchToHybridOscillator()
 {
-    *(uint32_t*)RTC_CMR = readRTC_CCVR() + millisToRTCTicks(milliseconds);
-    //*(uint32_t*)RTC_CMR = readRTC_CCVR() + milliseconds;
+  //read trim value from OTP
+  uint32_t trimMask = *(uint16_t*)OSCTRIM_ADDR << 20;
+  *(uint32_t*)OSC0_CFG1 = 0x00000002 | trimMask;  //switch to internal oscillator using trim value from OTP
+}
+
+void ArduinoLowPowerClass::switchToCrystalOscillator()
+{
+  *(uint32_t*)OSC0_CFG1 = 0x00070009;
+  while(!(*(uint32_t*)OSC0_STAT & 0x00000002));   //wait till crystal oscillator is stable
+}
+
+void ArduinoLowPowerClass::setRTCCMR(int seconds)
+{
+  *(uint32_t*)RTC_CMR = readRTC_CCVR() + seconds;
 }
 
 uint32_t ArduinoLowPowerClass::readRTC_CCVR()
 {
-    return *(uint32_t*)RTC_CCVR;
+  return *RTC_CCVR;
 }
 
 uint32_t ArduinoLowPowerClass::millisToRTCTicks(int milliseconds)
 {
-    return (uint32_t)((double)milliseconds*32.768);
+  return (uint32_t)((double)milliseconds*32.768);
 }
 
-void ArduinoLowPowerClass::enableRTCInterrupt()
+void ArduinoLowPowerClass::enableRTCInterrupt(int seconds)
 {
-    *(uint32_t*)RTC_MASK_INT &= 0xFFFFFFFF;
-    *(uint32_t*)RTC_CCR |= 0x00000001;
-    *(uint32_t*)RTC_CCR &= 0xFFFFFFFD;
+  setRTCCMR(seconds);
+  *(uint32_t*)RTC_MASK_INT &= 0xFFFFFEFE;
+  *(uint32_t*)RTC_CCR |= 0x00000001;
+  *(uint32_t*)RTC_CCR &= 0xFFFFFFFD;
+  volatile uint32_t read = *(uint32_t*)RTC_EOI;
+
+  pmCB = &wakeFromRTC;
+  interrupt_disable(IRQ_RTC_INTR);
+  interrupt_connect(IRQ_RTC_INTR , &PM_InterruptHandler);
+  delayTicks(6400);   //2ms
+  interrupt_enable(IRQ_RTC_INTR);
+}
+
+void ArduinoLowPowerClass::enableAONPTimerInterrrupt(int millis)
+{
+  pmCB = resetAONPTimer;
+  *(uint32_t*)AONPT_CFG = millisToRTCTicks(millis);
+  *(uint32_t*)AONPT_CTRL |= 0x00000003;
+
+  *(uint32_t*)AON_TIMER_MASK_INT &= 0xFFFFFEFE;
+  interrupt_disable(IRQ_ALWAYS_ON_TMR);
+  interrupt_connect(IRQ_ALWAYS_ON_TMR , &PM_InterruptHandler);
+  delayTicks(6400);   //2ms
+  interrupt_enable(IRQ_ALWAYS_ON_TMR);
+}
+
+void ArduinoLowPowerClass::resetAONPTimer()
+{
+  *(uint32_t*)AONPT_CFG = 0;
+  *(uint32_t*)AONPT_CTRL |= 0x00000001;
+  delayTicks(6400);
+
+  //trick the HOST into waking from AONPTimer
+  *(uint32_t*)AONPT_CFG = 10;
+  *(uint32_t*)AONPT_CTRL |= 0x00000003;
+
+  *(uint32_t*)AON_TIMER_MASK_INT &= 0xFFFFFFFE;
+  interrupt_enable(IRQ_ALWAYS_ON_TMR);
+}
+
+void ArduinoLowPowerClass::enableAONGPIOInterrupt(int aon_gpio, int mode)
+{
+  switch(mode)
+  {
+    case CHANGE:    //not supported just do the same as FALLING
+        *(uint32_t*)AON_GPIO_INTTYPE_LEVEL |= 1 << aon_gpio;
+        *(uint32_t*)AON_GPIO_INT_POL &= ~(1 << aon_gpio);
+        break;
+    case RISING:
+        *(uint32_t*)AON_GPIO_INTTYPE_LEVEL |= 1 << aon_gpio;
+        *(uint32_t*)AON_GPIO_INT_POL |= 1 << aon_gpio;
+        break;
+    case FALLING:
+        *(uint32_t*)AON_GPIO_INTTYPE_LEVEL |= 1 << aon_gpio;
+        *(uint32_t*)AON_GPIO_INT_POL &= ~(1 << aon_gpio);
+        break;
+    case HIGH:
+        *(uint32_t*)AON_GPIO_INTTYPE_LEVEL &= ~(1 << aon_gpio);
+        *(uint32_t*)AON_GPIO_INT_POL |= 1 << aon_gpio;
+        break;
+    case LOW:
+        *(uint32_t*)AON_GPIO_INTTYPE_LEVEL &= ~(1 << aon_gpio);
+        *(uint32_t*)AON_GPIO_INT_POL &= ~(1 << aon_gpio);
+        break;
+    default:
+        *(uint32_t*)AON_GPIO_INTTYPE_LEVEL &= ~(1 << aon_gpio);
+        *(uint32_t*)AON_GPIO_INT_POL &= ~(1 << aon_gpio);
+        break;
+  };
+
+  *(uint32_t*)AON_GPIO_SWPORTA_DDR &= ~(1 << aon_gpio);
+  *(uint32_t*)AON_GPIO_INTMASK &= ~(1 << aon_gpio);
+  *(uint32_t*)AON_GPIO_INTEN |= 1 << aon_gpio;
+
+  *(uint32_t*)AON_GPIO_MASK_INT &= 0xFFFFFEFE;
+  interrupt_disable(IRQ_ALWAYS_ON_GPIO);
+  interrupt_connect(IRQ_ALWAYS_ON_GPIO , &PM_InterruptHandler);
+  interrupt_enable(IRQ_ALWAYS_ON_GPIO);
+}
+
+void ArduinoLowPowerClass::wakeFromRTC()
+{
+    *(uint32_t*)RTC_MASK_INT |= 0x00000101;
     interrupt_disable(IRQ_RTC_INTR);
-    interrupt_connect(IRQ_RTC_INTR , &PM_InterruptHandler);
-    interrupt_enable(IRQ_RTC_INTR);
+    volatile uint32_t read = *(uint32_t*)RTC_EOI;
 }
 
 void ArduinoLowPowerClass::x86_C2Request()
 {
     switchToHybridOscillator();
-    //set the CCU_C2_LP_EN bit
-    *(uint32_t*)CCU_LP_CLK_CTL = (*(uint32_t*)CCU_LP_CLK_CTL) | 0x00000002;
     //request for the x86 core go into C2 sleep
     volatile uint32_t c2 = *(volatile uint32_t*)P_LVL2;
- 
+}
+
+void ArduinoLowPowerClass::x86_C2LPRequest()
+{
+  switchToHybridOscillator();
+  //request for the x86 core go into C2 sleep
+  *(uint32_t*)CCU_LP_CLK_CTL |= 0x00000002;
+  volatile uint32_t c2lp = *(volatile uint32_t*)P_LVL2;
 }
 
 void ArduinoLowPowerClass::attachInterruptWakeup(uint32_t pin, voidFuncPtr callback, uint32_t mode) {
 
-	extern uint32_t sizeof_g_APinDescription;
+    if( pin >= NUM_DIGITAL_PINS  )
+    {
+        pmCB = callback;
+        switch (pin)
+        {
+            case AON_GPIO0:
+                enableAONGPIOInterrupt(0, mode);
+                break;
+            case AON_GPIO1:
+                enableAONGPIOInterrupt(1, mode);
+                break;
+            case AON_GPIO2:
+                enableAONGPIOInterrupt(2, mode);
+                break;
+            case AON_GPIO3:
+                enableAONGPIOInterrupt(3, mode);
+                break;
+            case INT_BMI160:
+                enableAONGPIOInterrupt(4, mode);
+                break;
+            case INT_BLE:
+                enableAONGPIOInterrupt(5, mode);
+                break;
+            default:
+                break;
+        };
+    }
+}
 
-	if (pin > sizeof_g_APinDescription) {
-		// check for external wakeup sources
-		// RTC library should call this API to enable the alarm subsystem
-		switch (pin) {
-			case RTC_ALARM_WAKEUP:
-				attachWakeInterruptRTC(callback);
-				break;
-			case RESET_BUTTON_WAKEUP:
-				gpio_cfg_data_t pin_cfg = {
-					.gpio_type = GPIO_INTERRUPT,
-					.int_type = LEVEL,
-					.int_polarity = ACTIVE_LOW,
-					.int_debounce = DEBOUNCE_OFF,
-					.int_ls_sync = LS_SYNC_OFF,
-					.gpio_cb = callback
-				};
-				soc_gpio_deconfig(SOC_GPIO_AON, 0);
-				/* set RESET GPIO button to be an input */
-				soc_gpio_set_config(SOC_GPIO_AON, 0, &pin_cfg);
-				SET_PIN_PULLUP(32*3 + 8, 1);
-				break;
-		}
-		return;
-	}
-
-	
-
-	//pinMode(pin, INPUT_PULLUP);
-	//attachInterrupt(pin, callback, mode);
+void ArduinoLowPowerClass::detachInterruptWakeup(uint32_t pin)
+{
+    pmCB = NULL;
+    if( pin >= NUM_DIGITAL_PINS  )
+    {
+        if(pin == INT_RTC)
+        {
+            interrupt_disable(IRQ_RTC_INTR);
+        }
+        else if (pin == INT_COMP)
+        {
+            interrupt_disable(IRQ_ALWAYS_ON_TMR);
+        }
+        else if (pin == AON_TIMER)
+        {
+            interrupt_disable(IRQ_COMPARATORS_INTR);
+        }
+        else
+        {
+           interrupt_disable(IRQ_ALWAYS_ON_GPIO);
+        }
+    }
 }
 
 ArduinoLowPowerClass LowPower;

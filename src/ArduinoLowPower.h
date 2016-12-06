@@ -7,7 +7,7 @@
 #error The library is not compatible with AVR boards
 #endif
 
-#ifdef ARDUINO_ARCH_ARC32
+#ifdef __ARDUINO_ARC__
 #include "include/arc32/defines.h"
 #endif
 
@@ -39,9 +39,12 @@ class ArduinoLowPowerClass {
 
 		void attachInterruptWakeup(uint32_t pin, voidFuncPtr callback, uint32_t mode);
 
-		#ifdef ARDUINO_ARCH_ARC32
-        void wakeFromSleepCallback(void);
-        #endif
+		#ifdef __ARDUINO_ARC__
+		void wakeFromSleepCallback(void);
+		void wakeFromDoze(void);
+		void detachInterruptWakeup(uint32_t pin);
+		uint32_t arc_restore_addr;
+		#endif
 
 	private:
 		#ifdef ARDUINO_ARCH_SAMD
@@ -50,24 +53,27 @@ class ArduinoLowPowerClass {
 		#define RTC_ALARM_WAKEUP	0xFF
 		#endif
 
-		#ifdef ARDUINO_ARCH_ARC32
-        void wakeFromDoze();
-        void switchToHybridOscillator();
-        void switchToCrystalOscillator();
-        void attachWakeInterruptRTC(void (*userCallBack)());
+		#ifdef __ARDUINO_ARC__
 		void turnOffUSB();
-        void turnOnUSB();
-        void setRTCCMR(int milliseconds);
-        uint32_t readRTC_CCVR();
-        bool isSleeping = false;
-        uint32_t millisToRTCTicks(int milliseconds);
-        void enableRTCInterrupt();
-        void x86_C2Request();
-        void (*pmCB)();
-        #define RTC_ALARM_WAKEUP	0xFF
+		void turnOnUSB();
+		void switchToHybridOscillator();
+		void switchToCrystalOscillator();
+		void setRTCCMR(int seconds);
+		uint32_t readRTC_CCVR();
+		bool isSleeping = false;
+		volatile bool dozing = false;
+		uint32_t millisToRTCTicks(int milliseconds);
+		void enableRTCInterrupt(int seconds);
+		void enableAONGPIOInterrupt(int aon_gpio, int mode);
+		void enableAONPTimerInterrrupt(int millis);
+		static void resetAONPTimer();
+		static void wakeFromRTC();
+		void x86_C2Request();
+		void x86_C2LPRequest();
+		void (*pmCB)();
+		#define RTC_ALARM_WAKEUP	0xFF
 		#define RESET_BUTTON_WAKEUP	0xFE
 		#endif
-
 };
 
 extern ArduinoLowPowerClass LowPower;
