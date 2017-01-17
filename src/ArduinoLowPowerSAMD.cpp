@@ -53,7 +53,7 @@ void ArduinoLowPowerClass::attachInterruptWakeup(uint32_t pin, voidFuncPtr callb
 		// RTC library should call this API to enable the alarm subsystem
 		switch (pin) {
 			case RTC_ALARM_WAKEUP:
-				rtc.begin();
+				rtc.begin(false);
 				rtc.attachInterrupt(callback);
 			/*case UART_WAKEUP:*/
 		}
