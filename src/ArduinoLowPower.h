@@ -7,10 +7,6 @@
 #error The library is not compatible with AVR boards
 #endif
 
-#ifdef __ARDUINO_ARC__
-#include "include/arc32/defines.h"
-#endif
-
 #ifdef ARDUINO_ARCH_SAMD
 #include "RTCZero.h"
 #endif
@@ -19,6 +15,8 @@
 // add here any board with companion chip which can be woken up
 #define BOARD_HAS_COMPANION_CHIP
 #endif
+
+#define RTC_ALARM_WAKEUP	0xFF
 
 //typedef void (*voidFuncPtr)( void ) ;
 typedef void (*onOffFuncPtr)( bool ) ;
@@ -57,42 +55,12 @@ class ArduinoLowPowerClass {
 		}
 		#endif
 
-		#ifdef __ARDUINO_ARC__
-		void wakeFromSleepCallback(void);
-		void wakeFromDoze(void);
-		void detachInterruptWakeup(uint32_t pin);
-		uint32_t arc_restore_addr;
-		#endif
-
 	private:
-		#ifdef ARDUINO_ARCH_SAMD
 		void setAlarmIn(uint32_t millis);
 		RTCZero rtc;
-		#define RTC_ALARM_WAKEUP	0xFF
-		#endif
-
-		#ifdef __ARDUINO_ARC__
-		void turnOffUSB();
-		void turnOnUSB();
-		void switchToHybridOscillator();
-		void switchToCrystalOscillator();
-		void setRTCCMR(int seconds);
-		uint32_t readRTC_CCVR();
-		bool isSleeping = false;
-		volatile bool dozing = false;
-		uint32_t millisToRTCTicks(int milliseconds);
-		void enableRTCInterrupt(int seconds);
-		void enableAONGPIOInterrupt(int aon_gpio, int mode);
-		void enableAONPTimerInterrrupt(int millis);
-		static void resetAONPTimer();
-		static void wakeFromRTC();
-		void x86_C2Request();
-		void x86_C2LPRequest();
-		void (*pmCB)();
-		#define RTC_ALARM_WAKEUP	0xFF
-		#define RESET_BUTTON_WAKEUP	0xFE
-		#endif
+		#ifdef BOARD_HAS_COMPANION_CHIP
 		void (*companionSleepCB)(bool);
+		#endif
 };
 
 extern ArduinoLowPowerClass LowPower;

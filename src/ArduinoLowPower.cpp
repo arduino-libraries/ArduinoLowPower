@@ -1,7 +1,4 @@
 #include "ArduinoLowPower.h"
-
-#ifdef ARDUINO_ARCH_SAMD
-
 #include "WInterrupts.h"
 
 void ArduinoLowPowerClass::idle() {
@@ -64,7 +61,7 @@ void ArduinoLowPowerClass::attachInterruptWakeup(uint32_t pin, voidFuncPtr callb
 	if (in == NOT_AN_INTERRUPT || in == EXTERNAL_INT_NMI)
     		return;
 
-	pinMode(pin, INPUT_PULLUP);
+	//pinMode(pin, INPUT_PULLUP);
 	attachInterrupt(pin, callback, mode);
 
 	// enable EIC clock
@@ -90,5 +87,3 @@ void ArduinoLowPowerClass::attachInterruptWakeup(uint32_t pin, voidFuncPtr callb
 }
 
 ArduinoLowPowerClass LowPower;
-
-#endif
