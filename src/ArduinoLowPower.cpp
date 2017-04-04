@@ -14,6 +14,7 @@ void ArduinoLowPowerClass::idle(uint32_t millis) {
 }
 
 void ArduinoLowPowerClass::sleep() {
+	USBDevice.standby();
 	SCB->SCR |= SCB_SCR_SLEEPDEEP_Msk;
 	__DSB();
 	__WFI();
