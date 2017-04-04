@@ -16,6 +16,7 @@ LowPower	KEYWORD1
 idle	KEYWORD2
 sleep	KEYWORD2
 deepSleep	KEYWORD2
+attachInterruptWakeup	KEYWORD2
 
 #######################################
 # Constants (LITERAL1)
