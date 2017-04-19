@@ -1,3 +1,5 @@
+#if defined(ARDUINO_ARCH_SAMD)
+
 #include "ArduinoLowPower.h"
 #include "WInterrupts.h"
 
@@ -88,3 +90,5 @@ void ArduinoLowPowerClass::attachInterruptWakeup(uint32_t pin, voidFuncPtr callb
 }
 
 ArduinoLowPowerClass LowPower;
+
+#endif // ARDUINO_ARCH_SAMD

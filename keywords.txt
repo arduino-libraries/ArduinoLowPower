@@ -17,7 +17,17 @@ idle	KEYWORD2
 sleep	KEYWORD2
 deepSleep	KEYWORD2
 attachInterruptWakeup	KEYWORD2
+enableWakeupFrom	KEYWORD2
+companionLowPowerCallback	KEYWORD2
+companionSleep	KEYWORD2
+companionWakeup	KEYWORD2
+wakeupReason	KEYWORD2
 
 #######################################
 # Constants (LITERAL1)
 #######################################
+
+OTHER_WAKEUP	LITERAL1
+GPIO_WAKEUP	LITERAL1
+NFC_WAKEUP	LITERAL1
+ANALOG_COMPARATOR_WAKEUP	LITERAL1
