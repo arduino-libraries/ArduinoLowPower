@@ -11,7 +11,7 @@
 #include "RTCZero.h"
 #endif
 
-#if defined(ARDUINO_SAMD_TIAN)
+#if defined(ARDUINO_SAMD_TIAN) || defined(ARDUINO_NRF52_PRIMO)
 // add here any board with companion chip which can be woken up
 #define BOARD_HAS_COMPANION_CHIP
 #endif
@@ -20,6 +20,13 @@
 
 //typedef void (*voidFuncPtr)( void ) ;
 typedef void (*onOffFuncPtr)( bool ) ;
+
+typedef enum{
+	OTHER = 0,
+	GPIOReset = 1,
+	NFCReset = 2,
+	CompReset = 3
+} resetReason;
 
 class ArduinoLowPowerClass {
 	public:
@@ -55,9 +62,18 @@ class ArduinoLowPowerClass {
 		}
 		#endif
 
+		#ifdef ARDUINO_ARCH_NRF52
+		void wakeUpByGPIO(uint8_t pinNo, uint8_t level);
+		void wakeUpByNFC();
+		void wakeUpByComp(uint8_t pin, nrf_lpcomp_ref_t reference, detect_mode mode);
+		resetReason wakeUpCause();
+		#endif
+
 	private:
 		void setAlarmIn(uint32_t millis);
+		#ifdef ARDUINO_ARCH_SAMD
 		RTCZero rtc;
+		#endif
 		#ifdef BOARD_HAS_COMPANION_CHIP
 		void (*companionSleepCB)(bool);
 		#endif
