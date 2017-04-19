@@ -17,14 +17,14 @@
 
 #define MIPS_PIN 32 
 
-void MIPS_PM(bool sleep) {
+void MipsPM(bool sleep) {
   pinMode(MIPS_PIN, OUTPUT);
   digitalWrite(MIPS_PIN, sleep ? LOW: HIGH);
 }
 
 void setup() {
   pinMode(LED_BUILTIN, OUTPUT);
-  LowPower.companionLowPowerCallback(MIPS_PM);
+  LowPower.companionLowPowerCallback(MipsPM);
   // Uncomment this function if you wish to attach function dummy when RTC wakes up the chip
   LowPower.attachInterruptWakeup(RTC_ALARM_WAKEUP, onWakeup, CHANGE);
 }
