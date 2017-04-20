@@ -71,7 +71,7 @@ void setup() {
   //let the board be woken up by any NFC field
   LowPower.enableWakeupFrom(NFC);
   //wake up the board when the voltage on pin A0 goes below the voltage on pin AREF
-  LowPower.enableWakeupFrom(COMP, analogPin, AREF, UP);
+  LowPower.enableWakeupFrom(ANALOG_COMPARATOR, analogPin, AREF, UP);
   //go in low power mode. Note that the board will reset once it is woken up
   LowPower.deepSleep();
 }
