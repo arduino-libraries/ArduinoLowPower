@@ -102,12 +102,12 @@ void ArduinoLowPowerClass::attachInterruptWakeup(uint32_t pin, voidFuncPtr callb
 	attachInterrupt(pin, wakeUpGpio, mode);
 }
 
-void ArduinoLowPowerClass::enableWakeupFrom(uint32_t peripheral, uint32_t pin, uint32_t event, uint32_t option){
+void ArduinoLowPowerClass::enableWakeupFrom(peripherals peripheral, uint32_t pin, uint32_t event, uint32_t option){
 	if(peripheral == NFC){
 		NRF_NFCT->TASKS_SENSE=1;
 		return;
 	}
-	if(peripheral == COMP){
+	if(peripheral == ANALOG_COMPARATOR){
 		detect_mode mode;
 		if(option == DOWN)
 			mode = DOWN;

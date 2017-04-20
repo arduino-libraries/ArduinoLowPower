@@ -17,9 +17,6 @@
 #endif
 
 #define RTC_ALARM_WAKEUP	0xFF
-#define GPIO 				0x01
-#define NFC 				0x02
-#define COMP 				0x03
 
 //typedef void (*voidFuncPtr)( void ) ;
 typedef void (*onOffFuncPtr)( bool ) ;
@@ -30,6 +27,12 @@ typedef enum{
 	NFCReset = 2,
 	CompReset = 3
 } resetReason;
+
+typedef enum{
+	GPIO = 1,
+	NFC = 2,
+	ANALOG_COMPARATOR = 3
+} peripherals;
 
 class ArduinoLowPowerClass {
 	public:
@@ -52,7 +55,6 @@ class ArduinoLowPowerClass {
 		}
 
 		void attachInterruptWakeup(uint32_t pin, voidFuncPtr callback, uint32_t mode);
-		void enableWakeupFrom(uint32_t peripheral, uint32_t pin = 0xFF, uint32_t event = 0xFF, uint32_t option = 0xFF);
 		
 		#ifdef BOARD_HAS_COMPANION_CHIP
 		void companionLowPowerCallback(onOffFuncPtr callback) {
@@ -67,6 +69,7 @@ class ArduinoLowPowerClass {
 		#endif
 
 		#ifdef ARDUINO_ARCH_NRF52
+		void enableWakeupFrom(peripherals peripheral, uint32_t pin = 0xFF, uint32_t event = 0xFF, uint32_t option = 0xFF);
 		resetReason wakeupReason();
 		#endif
 
