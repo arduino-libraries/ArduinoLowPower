@@ -17,6 +17,9 @@
 #endif
 
 #define RTC_ALARM_WAKEUP	0xFF
+#define GPIO 				0x01
+#define NFC 				0x02
+#define COMP 				0x03
 
 //typedef void (*voidFuncPtr)( void ) ;
 typedef void (*onOffFuncPtr)( bool ) ;
@@ -49,7 +52,8 @@ class ArduinoLowPowerClass {
 		}
 
 		void attachInterruptWakeup(uint32_t pin, voidFuncPtr callback, uint32_t mode);
-
+		void enableWakeupFrom(uint32_t peripheral, uint32_t pin = 0xFF, uint32_t event = 0xFF, uint32_t option = 0xFF);
+		
 		#ifdef BOARD_HAS_COMPANION_CHIP
 		void companionLowPowerCallback(onOffFuncPtr callback) {
 			companionSleepCB = callback;
@@ -63,10 +67,7 @@ class ArduinoLowPowerClass {
 		#endif
 
 		#ifdef ARDUINO_ARCH_NRF52
-		void wakeUpByGPIO(uint8_t pinNo, uint8_t level);
-		void wakeUpByNFC();
-		void wakeUpByComp(uint8_t pin, nrf_lpcomp_ref_t reference, detect_mode mode);
-		resetReason wakeUpCause();
+		resetReason wakeupReason();
 		#endif
 
 	private:

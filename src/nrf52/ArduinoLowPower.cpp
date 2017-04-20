@@ -102,30 +102,40 @@ void ArduinoLowPowerClass::attachInterruptWakeup(uint32_t pin, voidFuncPtr callb
 	attachInterrupt(pin, wakeUpGpio, mode);
 }
 
-void ArduinoLowPowerClass::wakeUpByGPIO(uint8_t pinNo, uint8_t level){
-	//Let the pin be sensitive to specified level
-	if(level==LOW)
-		nrf_gpio_cfg_sense_input(g_APinDescription[pinNo].ulPin, NRF_GPIO_PIN_PULLUP, NRF_GPIO_PIN_SENSE_LOW);
-	else
-		nrf_gpio_cfg_sense_input(g_APinDescription[pinNo].ulPin, NRF_GPIO_PIN_PULLDOWN, NRF_GPIO_PIN_SENSE_HIGH);
+void ArduinoLowPowerClass::enableWakeupFrom(uint32_t peripheral, uint32_t pin, uint32_t event, uint32_t option){
+	if(peripheral == NFC){
+		NRF_NFCT->TASKS_SENSE=1;
+		return;
+	}
+	if(peripheral == COMP){
+		detect_mode mode;
+		if(option == DOWN)
+			mode = DOWN;
+		else if(option == UP)
+			mode = UP;
+		else
+			mode = CROSS;
+		nrf_lpcomp_config_t config={(nrf_lpcomp_ref_t)event, (nrf_lpcomp_detect_t)mode};
+		nrf_lpcomp_configure(&config);
+		if(pin<14 && pin>19)
+			return;	//no analog pin is choosen
+		nrf_lpcomp_input_select(aPin[pin-14]);
+		nrf_lpcomp_enable();
+		nrf_lpcomp_task_trigger(NRF_LPCOMP_TASK_START);
+		while(!nrf_lpcomp_event_check(NRF_LPCOMP_EVENT_READY));
+		return;
+	}
+	if(peripheral == GPIO){
+		if(pin > 20)// allow wake up only from digital and analog pins
+			return;
+		if(event==LOW)
+			nrf_gpio_cfg_sense_input(g_APinDescription[pin].ulPin, NRF_GPIO_PIN_PULLUP, NRF_GPIO_PIN_SENSE_LOW);
+		else
+			nrf_gpio_cfg_sense_input(g_APinDescription[pin].ulPin, NRF_GPIO_PIN_PULLDOWN, NRF_GPIO_PIN_SENSE_HIGH);
+	}
 }
 
-void ArduinoLowPowerClass::wakeUpByNFC(){
-	NRF_NFCT->TASKS_SENSE=1;
-}
-
-void ArduinoLowPowerClass::wakeUpByComp(uint8_t pin, nrf_lpcomp_ref_t reference, detect_mode mode){
-	nrf_lpcomp_config_t config={reference, (nrf_lpcomp_detect_t)mode};
-	nrf_lpcomp_configure(&config);
-	if(pin<14 && pin>19)
-		return;	//no analog pin is choosen
-	nrf_lpcomp_input_select(aPin[pin-14]);
-	nrf_lpcomp_enable();
-	nrf_lpcomp_task_trigger(NRF_LPCOMP_TASK_START);
-	while(!nrf_lpcomp_event_check(NRF_LPCOMP_EVENT_READY));
-}
-
-resetReason ArduinoLowPowerClass::wakeUpCause(){
+resetReason ArduinoLowPowerClass::wakeupReason(){
 	uint32_t guilty;
 	sd_power_reset_reason_get(&guilty);
 	if(guilty & 0x10000){ // GPIO

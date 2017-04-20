@@ -11,9 +11,9 @@
   Please note that once exited from the deepest sleep mode the
   board will reset (so setup will be run again).
   
-  The functions wakeUpBy.. set the signals that will wake up 
-  the board. Comment out this functions if you don't want to
-  use one of them in order to get the minimum power consumption.
+  The functions enableWakeupFrom set the peripheral that will wake up
+  the board. By calling it more than once you can choose more than
+  a wakeup source.
   The board will be reset when it wakes up from power off.
   You can use wakeUpCause() function to find out what signals woke up
   the board if you use more than one wakeUpBy.. function.
@@ -50,7 +50,7 @@ void setup() {
 
   //look for what peripheral woke up the board
   //reason is 0 at the first execution
-  resetReason reason=LowPower.wakeUpCause();
+  resetReason reason=LowPower.wakeupReason();
   if(reason==GPIOReset) //GPIO caused the wake up
     doMyStuff();
   else
@@ -67,11 +67,11 @@ void setup() {
   LowPower.companionSleep();
 
   //set digital pin 10 to wake up the board when LOW level is detected
-  LowPower.wakeUpByGPIO(digitalPin, LOW);
+  LowPower.enableWakeupFrom(GPIO, digitalPin, LOW);
   //let the board be woken up by any NFC field
-  LowPower.wakeUpByNFC();
+  LowPower.enableWakeupFrom(NFC);
   //wake up the board when the voltage on pin A0 goes below the voltage on pin AREF
-  LowPower.wakeUpByComp(analogPin, AREF, DOWN);
+  LowPower.enableWakeupFrom(COMP, analogPin, AREF, UP);
   //go in low power mode. Note that the board will reset once it is woken up
   LowPower.deepSleep();
 }
