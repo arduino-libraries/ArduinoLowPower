@@ -102,12 +102,12 @@ void ArduinoLowPowerClass::attachInterruptWakeup(uint32_t pin, voidFuncPtr callb
 	attachInterrupt(pin, wakeUpGpio, mode);
 }
 
-void ArduinoLowPowerClass::enableWakeupFrom(peripherals peripheral, uint32_t pin, uint32_t event, uint32_t option){
-	if(peripheral == NFC){
+void ArduinoLowPowerClass::enableWakeupFrom(wakeup_reason peripheral, uint32_t pin, uint32_t event, uint32_t option){
+	if(peripheral == NFC_WAKEUP){
 		NRF_NFCT->TASKS_SENSE=1;
 		return;
 	}
-	if(peripheral == ANALOG_COMPARATOR){
+	if(peripheral == ANALOG_COMPARATOR_WAKEUP){
 		detect_mode mode;
 		if(option == DOWN)
 			mode = DOWN;
@@ -125,7 +125,7 @@ void ArduinoLowPowerClass::enableWakeupFrom(peripherals peripheral, uint32_t pin
 		while(!nrf_lpcomp_event_check(NRF_LPCOMP_EVENT_READY));
 		return;
 	}
-	if(peripheral == GPIO){
+	if(peripheral == GPIO_WAKEUP){
 		if(pin > 20)// allow wake up only from digital and analog pins
 			return;
 		if(event==LOW)
@@ -135,23 +135,23 @@ void ArduinoLowPowerClass::enableWakeupFrom(peripherals peripheral, uint32_t pin
 	}
 }
 
-resetReason ArduinoLowPowerClass::wakeupReason(){
+wakeup_reason ArduinoLowPowerClass::wakeupReason(){
 	uint32_t guilty;
 	sd_power_reset_reason_get(&guilty);
 	if(guilty & 0x10000){ // GPIO
 		//RESETREAS is a cumulative register. We need to clear it by writing 1 in the relative field
 		sd_power_reset_reason_clr(1 << 16);
-		return GPIOReset;
+		return GPIO_WAKEUP;
 	}
 	if(guilty & 0x80000){ //NFC
 		sd_power_reset_reason_clr(1 << 19);
-		return NFCReset;
+		return NFC_WAKEUP;
 	}
 	if(guilty & 0x20000){ //COMP	
 		sd_power_reset_reason_clr(1 << 17);
-		return CompReset;
+		return ANALOG_COMPARATOR_WAKEUP;
 	}
-	return OTHER;
+	return OTHER_WAKEUP;
 }
 
 

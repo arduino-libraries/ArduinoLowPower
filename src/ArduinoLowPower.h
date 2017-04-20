@@ -22,17 +22,12 @@
 typedef void (*onOffFuncPtr)( bool ) ;
 
 typedef enum{
-	OTHER = 0,
-	GPIOReset = 1,
-	NFCReset = 2,
-	CompReset = 3
-} resetReason;
+	OTHER_WAKEUP = 0,
+	GPIO_WAKEUP = 1,
+	NFC_WAKEUP = 2,
+	ANALOG_COMPARATOR_WAKEUP = 3
+} wakeup_reason;
 
-typedef enum{
-	GPIO = 1,
-	NFC = 2,
-	ANALOG_COMPARATOR = 3
-} peripherals;
 
 class ArduinoLowPowerClass {
 	public:
@@ -69,8 +64,8 @@ class ArduinoLowPowerClass {
 		#endif
 
 		#ifdef ARDUINO_ARCH_NRF52
-		void enableWakeupFrom(peripherals peripheral, uint32_t pin = 0xFF, uint32_t event = 0xFF, uint32_t option = 0xFF);
-		resetReason wakeupReason();
+		void enableWakeupFrom(wakeup_reason peripheral, uint32_t pin = 0xFF, uint32_t event = 0xFF, uint32_t option = 0xFF);
+		wakeup_reason wakeupReason();
 		#endif
 
 	private:

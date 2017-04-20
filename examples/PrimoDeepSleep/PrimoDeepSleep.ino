@@ -50,14 +50,14 @@ void setup() {
 
   //look for what peripheral woke up the board
   //reason is 0 at the first execution
-  resetReason reason=LowPower.wakeupReason();
-  if(reason==GPIOReset) //GPIO caused the wake up
+  wakeup_reason reason=LowPower.wakeupReason();
+  if(reason==GPIO_WAKEUP) //GPIO caused the wake up
     doMyStuff();
   else
-    if(reason==NFCReset) //NFC caused the wake up
+    if(reason==NFC_WAKEUP) //NFC caused the wake up
       doMyStuffWithNFC();
   else
-    if(reason==CompReset) //Comparator caused the wake up
+    if(reason==ANALOG_COMPARATOR_WAKEUP) //Comparator caused the wake up
       doOtherStuff();
 
   Serial.println("Hi all, I return to sleep");
@@ -67,11 +67,11 @@ void setup() {
   LowPower.companionSleep();
 
   //set digital pin 10 to wake up the board when LOW level is detected
-  LowPower.enableWakeupFrom(GPIO, digitalPin, LOW);
+  LowPower.enableWakeupFrom(GPIO_WAKEUP, digitalPin, LOW);
   //let the board be woken up by any NFC field
-  LowPower.enableWakeupFrom(NFC);
+  LowPower.enableWakeupFrom(NFC_WAKEUP);
   //wake up the board when the voltage on pin A0 goes below the voltage on pin AREF
-  LowPower.enableWakeupFrom(ANALOG_COMPARATOR, analogPin, AREF, UP);
+  LowPower.enableWakeupFrom(ANALOG_COMPARATOR_WAKEUP, analogPin, AREF, UP);
   //go in low power mode. Note that the board will reset once it is woken up
   LowPower.deepSleep();
 }
