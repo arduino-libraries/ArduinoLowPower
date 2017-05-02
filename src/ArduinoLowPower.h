@@ -50,7 +50,7 @@ class ArduinoLowPowerClass {
 		}
 
 		void attachInterruptWakeup(uint32_t pin, voidFuncPtr callback, uint32_t mode);
-
+		
 		#ifdef BOARD_HAS_COMPANION_CHIP
 		void companionLowPowerCallback(onOffFuncPtr callback) {
 			companionSleepCB = callback;
