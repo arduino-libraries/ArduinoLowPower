@@ -16,7 +16,7 @@
   a wakeup source.
   The board will be reset when it wakes up from power off.
   You can use wakeUpCause() function to find out what signals woke up
-  the board if you use more than one wakeUpBy.. function.
+  the board if you use enableWakeUpFrom() function more than once..
   
   This example code is in the public domain.
 */
