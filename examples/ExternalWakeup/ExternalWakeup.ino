@@ -21,6 +21,8 @@ const int pin = 8;
 
 void setup() {
   pinMode(LED_BUILTIN, OUTPUT);
+  // Set pin 8 as INPUT_PULLUP to avoid spurious wakeup
+  pinMode(pin, INPUT_PULLUP);
   // Attach a wakeup interrupt on pin 8, calling repetitionsIncrease when the device is woken up
   LowPower.attachInterruptWakeup(pin, repetitionsIncrease, CHANGE);
 }
