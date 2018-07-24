@@ -16,23 +16,19 @@ void ArduinoLowPowerClass::idle(uint32_t millis) {
 }
 
 void ArduinoLowPowerClass::sleep() {
-	/* remove for Adafruit Feather M0
 	bool restoreUSBDevice = false;
-	if (SerialUSB) {
+	if (SERIAL_PORT_USBVIRTUAL) {
 		USBDevice.standby();
 	} else {
 		USBDevice.detach();
 		restoreUSBDevice = true;
 	}
-	*/
 	SCB->SCR |= SCB_SCR_SLEEPDEEP_Msk;
 	__DSB();
 	__WFI();
-	/* remove for Adafruit Feather M0
 	if (restoreUSBDevice) {
 		USBDevice.attach();
 	}
-	*/
 }
 
 void ArduinoLowPowerClass::sleep(uint32_t millis) {
