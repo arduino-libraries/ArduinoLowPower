@@ -17,7 +17,7 @@ void ArduinoLowPowerClass::idle(uint32_t millis) {
 
 void ArduinoLowPowerClass::sleep() {
 	bool restoreUSBDevice = false;
-	if (SerialUSB) {
+	if (SERIAL_PORT_USBVIRTUAL) {
 		USBDevice.standby();
 	} else {
 		USBDevice.detach();
