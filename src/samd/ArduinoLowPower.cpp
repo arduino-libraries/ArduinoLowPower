@@ -18,6 +18,7 @@ void ArduinoLowPowerClass::idle(uint32_t millis) {
 void ArduinoLowPowerClass::sleep() {
 	bool restoreUSBDevice = false;
 	if (SERIAL_PORT_USBVIRTUAL) {
+		SERIAL_PORT_USBVIRTUAL.flush();
 		USBDevice.standby();
 	} else {
 		USBDevice.detach();
@@ -28,6 +29,9 @@ void ArduinoLowPowerClass::sleep() {
 	__WFI();
 	if (restoreUSBDevice) {
 		USBDevice.attach();
+	}
+	if (SERIAL_PORT_USBVIRTUAL) {
+		SERIAL_PORT_USBVIRTUAL.clear();
 	}
 }
 
