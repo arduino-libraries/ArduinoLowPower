@@ -18,6 +18,7 @@ void ArduinoLowPowerClass::idle(uint32_t millis) {
 void ArduinoLowPowerClass::sleep() {
 	bool restoreUSBDevice = false;
 	if (SERIAL_PORT_USBVIRTUAL) {
+		SERIAL_PORT_USBVIRTUAL.flush();
 		USBDevice.standby();
 	} else {
 		USBDevice.detach();
@@ -28,6 +29,9 @@ void ArduinoLowPowerClass::sleep() {
 	__WFI();
 	if (restoreUSBDevice) {
 		USBDevice.attach();
+	}
+	if (SERIAL_PORT_USBVIRTUAL) {
+		SERIAL_PORT_USBVIRTUAL.clear();
 	}
 }
 
@@ -57,7 +61,9 @@ void ArduinoLowPowerClass::setAlarmIn(uint32_t millis) {
 
 void ArduinoLowPowerClass::attachInterruptWakeup(uint32_t pin, voidFuncPtr callback, uint32_t mode) {
 
-	if (pin > PINS_COUNT) {
+    EExt_Interrupts in = g_APinDescription[pin].ulExtInt;
+
+    if (in == NOT_AN_INTERRUPT || in == EXTERNAL_INT_NMI) {
 		// check for external wakeup sources
 		// RTC library should call this API to enable the alarm subsystem
 		switch (pin) {
@@ -68,10 +74,6 @@ void ArduinoLowPowerClass::attachInterruptWakeup(uint32_t pin, voidFuncPtr callb
 		}
 		return;
 	}
-
-	EExt_Interrupts in = g_APinDescription[pin].ulExtInt;
-	if (in == NOT_AN_INTERRUPT || in == EXTERNAL_INT_NMI)
-    		return;
 
 	//pinMode(pin, INPUT_PULLUP);
 	attachInterrupt(pin, callback, mode);
