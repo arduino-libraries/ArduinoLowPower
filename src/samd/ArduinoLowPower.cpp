@@ -17,18 +17,14 @@ void ArduinoLowPowerClass::idle(uint32_t millis) {
 
 void ArduinoLowPowerClass::sleep() {
 	bool restoreUSBDevice = false;
-	if (SERIAL_PORT_USBVIRTUAL) {
-		USBDevice.standby();
-	} else {
-		USBDevice.detach();
-		restoreUSBDevice = true;
-	}
+	USBDevice.detach();
+	USBDevice.end();
+	USBDevice.standby();
 	SCB->SCR |= SCB_SCR_SLEEPDEEP_Msk;
 	__DSB();
 	__WFI();
-	if (restoreUSBDevice) {
-		USBDevice.attach();
-	}
+	USBDevice.init();
+	USBDevice.attach();
 }
 
 void ArduinoLowPowerClass::sleep(uint32_t millis) {
