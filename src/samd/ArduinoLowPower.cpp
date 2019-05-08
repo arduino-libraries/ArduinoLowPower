@@ -23,10 +23,13 @@ void ArduinoLowPowerClass::sleep() {
 		USBDevice.detach();
 		restoreUSBDevice = true;
 	}
+	// Disable systick interrupt:  See https://www.avrfreaks.net/forum/samd21-samd21e16b-sporadically-locks-and-does-not-wake-standby-sleep-mode
+	SysTick->CTRL &= ~SysTick_CTRL_TICKINT_Msk;	
 	SCB->SCR |= SCB_SCR_SLEEPDEEP_Msk;
 	__DSB();
 	__WFI();
-	if (restoreUSBDevice) {
+	// Enable systick interrupt
+	SysTick->CTRL |= SysTick_CTRL_TICKINT_Msk;	if (restoreUSBDevice) {
 		USBDevice.attach();
 	}
 }
