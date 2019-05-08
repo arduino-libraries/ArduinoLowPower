@@ -29,7 +29,8 @@ void ArduinoLowPowerClass::sleep() {
 	__DSB();
 	__WFI();
 	// Enable systick interrupt
-	SysTick->CTRL |= SysTick_CTRL_TICKINT_Msk;	if (restoreUSBDevice) {
+	SysTick->CTRL |= SysTick_CTRL_TICKINT_Msk;	
+	if (restoreUSBDevice) {
 		USBDevice.attach();
 	}
 }
