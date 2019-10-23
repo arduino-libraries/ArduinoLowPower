@@ -2,6 +2,9 @@
 #define _ARDUINO_LOW_POWER_H_
 
 #include <Arduino.h>
+#include <SERCOM.h>
+#include <Wire.h>
+#include <SPI.h>
 
 #ifdef ARDUINO_ARCH_AVR
 #error The library is not compatible with AVR boards
@@ -50,6 +53,9 @@ class ArduinoLowPowerClass {
 		}
 
 		void attachInterruptWakeup(uint32_t pin, voidFuncPtr callback, uint32_t mode);
+		void wakeOnWire(TwoWire * wire, bool intEnable);
+		void wakeOnSPI(SPIClass * spi, bool intEnable);
+		void wakeOnSerial(Uart * uart, bool intEnable);
 
 		#ifdef BOARD_HAS_COMPANION_CHIP
 		void companionLowPowerCallback(onOffFuncPtr callback) {

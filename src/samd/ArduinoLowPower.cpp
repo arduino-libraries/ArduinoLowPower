@@ -92,6 +92,24 @@ void ArduinoLowPowerClass::attachInterruptWakeup(uint32_t pin, voidFuncPtr callb
 	NVMCTRL->CTRLB.bit.SLEEPPRM = NVMCTRL_CTRLB_SLEEPPRM_DISABLED_Val;
 }
 
+void ArduinoLowPowerClass::wakeOnWire(TwoWire * wire, bool intEnable) {
+	wire->sercom->disableWIRE();
+	wire->sercom->sercom->I2CS.CTRLA.bit.RUNSTDBY = intEnable ;
+	wire->sercom->enableWIRE();
+}
+
+void ArduinoLowPowerClass::wakeOnSPI(SPIClass * spi, bool intEnable) {
+	spi->_p_sercom->disableSPI();
+	spi->_p_sercom->sercom->SPI.CTRLA.bit.RUNSTDBY = intEnable ;
+	spi->_p_sercom->enableSPI();
+}
+
+void ArduinoLowPowerClass::wakeOnSerial(Uart * uart, bool intEnable) {
+	uart->sercom->disableUART();
+	uart->sercom->sercom->USART.CTRLA.bit.RUNSTDBY = intEnable ;
+	uart->sercom->enableUART();
+}
+
 ArduinoLowPowerClass LowPower;
 
 #endif // ARDUINO_ARCH_SAMD
