@@ -56,7 +56,7 @@ void ArduinoLowPowerClass::setAlarmIn(uint32_t millis) {
 
 	uint32_t now = rtc.getEpoch();
 	rtc.setAlarmEpoch(now + millis/1000);
-	rtc.enableAlarm(rtc.MATCH_HHMMSS);
+	rtc.enableAlarm(rtc.MATCH_YYMMDDHHMMSS);
 }
 
 void ArduinoLowPowerClass::attachInterruptWakeup(uint32_t pin, voidFuncPtr callback, uint32_t mode) {
