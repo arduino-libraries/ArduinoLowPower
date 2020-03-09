@@ -1,4 +1,4 @@
-# Low Power library
+# Arduino Low Power library
 
 This library allows the use of the low power features of the SAMD21 MCU. This means your battery powered projects will have a longer battery life on boards like [MKRZero](https://store.arduino.cc/usa/arduino-mkrzero), [MKR1000](https://www.arduino.cc/en/Main/ArduinoMKR1000) and [MKRFox1200](https://www.arduino.cc/en/Main/ArduinoBoardMKRFox1200).
 
