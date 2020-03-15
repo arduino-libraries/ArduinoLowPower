@@ -1,15 +1,21 @@
+/* This example contains the arduino code for 
+weather station without sleep mode.*/
+
 #include <dht.h>
 
 #define dataPin 2
 dht DHT; 
 
-void setup() {
+void setup()
+{
+  
   Serial.begin(9600);
   pinMode(LED_BUILTIN,OUTPUT);
   digitalWrite(LED_BUILTIN,LOW);
 }
 
-void loop() {
+void loop()
+{
 
   digitalWrite(LED_BUILTIN,HIGH);
   int readData = DHT.read11(dataPin); // DHT11
