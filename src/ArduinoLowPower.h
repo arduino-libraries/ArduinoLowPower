@@ -18,6 +18,12 @@
 
 #define RTC_ALARM_WAKEUP	0xFF
 
+#ifdef ARDUINO_API_VERSION
+using irq_mode = PinStatus;
+#else
+using irq_mode = uint32_t;
+#endif
+
 //typedef void (*voidFuncPtr)( void ) ;
 typedef void (*onOffFuncPtr)( bool ) ;
 
@@ -59,7 +65,7 @@ class ArduinoLowPowerClass {
 			deepSleep((uint32_t)millis);
 		}
 
-		void attachInterruptWakeup(uint32_t pin, voidFuncPtr callback, uint32_t mode);
+		void attachInterruptWakeup(uint32_t pin, voidFuncPtr callback, irq_mode mode);
 
 		#ifdef BOARD_HAS_COMPANION_CHIP
 		void companionLowPowerCallback(onOffFuncPtr callback) {

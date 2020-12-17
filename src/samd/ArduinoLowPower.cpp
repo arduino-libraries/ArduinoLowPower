@@ -1,7 +1,6 @@
 #if defined(ARDUINO_ARCH_SAMD)
 
 #include "ArduinoLowPower.h"
-#include "WInterrupts.h"
 
 static void configGCLK6()
 {
@@ -72,7 +71,7 @@ void ArduinoLowPowerClass::deepSleep(uint32_t millis) {
 void ArduinoLowPowerClass::setAlarmIn(uint32_t millis) {
 
 	if (!rtc.isConfigured()) {
-		attachInterruptWakeup(RTC_ALARM_WAKEUP, NULL, 0);
+		attachInterruptWakeup(RTC_ALARM_WAKEUP, NULL, (irq_mode)0);
 	}
 
 	uint32_t now = rtc.getEpoch();
@@ -80,7 +79,7 @@ void ArduinoLowPowerClass::setAlarmIn(uint32_t millis) {
 	rtc.enableAlarm(rtc.MATCH_YYMMDDHHMMSS);
 }
 
-void ArduinoLowPowerClass::attachInterruptWakeup(uint32_t pin, voidFuncPtr callback, uint32_t mode) {
+void ArduinoLowPowerClass::attachInterruptWakeup(uint32_t pin, voidFuncPtr callback, irq_mode mode) {
 
 	if (pin > PINS_COUNT) {
 		// check for external wakeup sources
