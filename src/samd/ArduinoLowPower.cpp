@@ -5,7 +5,7 @@
 static void configGCLK6()
 {
 	// enable EIC clock
-	GCLK->CLKCTRL.bit.CLKEN = 0; //disable GCLK module
+	GCLK->CLKCTRL.reg = (uint16_t)(GCLK_CLKCTRL_ID(GCM_EIC));  // Disable EIC clock (also sets GCLK_CTRL_CLKEN bit to 0)
 	while (GCLK->STATUS.bit.SYNCBUSY);
 
 	GCLK->CLKCTRL.reg = (uint16_t) (GCLK_CLKCTRL_CLKEN | GCLK_CLKCTRL_GEN_GCLK6 | GCLK_CLKCTRL_ID( GCM_EIC )) ;  //EIC clock switched on GCLK6
