@@ -23,6 +23,10 @@ jobs:
     name: ${{ matrix.board.fqbn }}
     runs-on: ubuntu-latest
 
+    env:
+      SKETCHES_REPORTS_PATH: sketches-reports
+
+    strategy:
       fail-fast: false
 
       matrix:
@@ -92,3 +96,12 @@ jobs:
             - examples/TimedWakeup
             # Board-specific sketches
             ${{ matrix.board.sketch-paths }}
+          enable-deltas-report: true
+          sketches-report-path: ${{ env.SKETCHES_REPORTS_PATH }}
+
+      - name: Save sketches report as workflow artifact
+        uses: actions/upload-artifact@v2
+        with:
+          if-no-files-found: error
+          path: ${{ env.SKETCHES_REPORTS_PATH }}
+          name: ${{ env.SKETCHES_REPORTS_PATH }}
