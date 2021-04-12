@@ -22,6 +22,10 @@ companionLowPowerCallback	KEYWORD2
 companionSleep	KEYWORD2
 companionWakeup	KEYWORD2
 wakeupReason	KEYWORD2
+powerOnWifi		KEYWORD2
+powerOffWifi		KEYWORD2
+enableStm32Sleep	KEYWORD2
+disableStm32Standby	KEYWORD2
 
 #######################################
 # Constants (LITERAL1)

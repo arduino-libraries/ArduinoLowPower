@@ -154,6 +154,26 @@ wakeup_reason ArduinoLowPowerClass::wakeupReason(){
 	return OTHER_WAKEUP;
 }
 
+void ArduinoLowPowerClass::powerOnWifi(){
+	//turn the WiFi on
+	digitalWrite(GPIO_ESP_PW, HIGH);
+}
+
+void ArduinoLowPowerClass::powerOffWifi(){
+	//turn the WiFi off
+	digitalWrite(GPIO_ESP_PW, LOW);
+}
+
+void ArduinoLowPowerClass::enableStm32Sleep(){
+	//setup USER1_BUTTON as an interrupt to trigger STM32 enter to sleep mode or wake up from sleep mode
+	pinMode(USER1_BUTTON, STM32_IT);
+}
+
+void ArduinoLowPowerClass::disableStm32Standby(){
+	//disable STM32 enter to standby mode
+	pinMode(BAT_VOL, INPUT);
+}
+
 
 ArduinoLowPowerClass LowPower;
 

@@ -16,7 +16,7 @@
   wakeup sources.
   The board will be reset when it wakes up from power off.
   You can use wakeUpCause() function to find out what signals woke up
-  the board if you use more than one wakeUpBy.. function.
+  the board if you use enableWakeUpFrom() function more than once..
   
   This example code is in the public domain.
 */
@@ -31,13 +31,16 @@ const int digitalPin = 10;
 const int analogPin = A0;
 
 
-void StmEspPM(bool sleep){
+void StmWifiPM(bool sleep){
   // enable USER1_BUTTON to turn STM32 off and on when pressed.
   // note that when STM32 is off you cannot load any new sketch.
-  pinMode(USER1_BUTTON, STM32_IT);
+  LowPower.enableStm32Sleep();
 
-  // turn ESP8266 off or on
-  digitalWrite(GPIO_ESP_PW, sleep ? LOW: HIGH);
+  // turn WiFi off or on
+  if(sleep)
+    LowPower.powerOffWifi();
+  else
+    LowPower.powerOnWifi();
 }
 
 void setup() {
@@ -62,8 +65,8 @@ void setup() {
 
   Serial.println("Hi all, I return to sleep");
 
-  LowPower.companionLowPowerCallback(StmEspPM);
-  // Send sleep command to ESP and enable USER1_BUTTON to turn STM off
+  LowPower.companionLowPowerCallback(StmWifiPM);
+  // Send sleep command to WiFi and enable USER1_BUTTON to turn STM off
   LowPower.companionSleep();
 
   //set digital pin 10 to wake up the board when LOW level is detected
