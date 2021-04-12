@@ -1,5 +1,5 @@
 #######################################
-# Syntax Coloring Map For Energy Saving
+# Syntax Coloring Map For Arduino Low Power
 #######################################
 
 #######################################
