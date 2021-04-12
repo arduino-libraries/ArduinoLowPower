@@ -1,12 +1,12 @@
 /*
   TianStandby
 
-  This sketch demonstrates the usage of SAMD chip to furtherly reduce the power usage of Tian
+  This sketch demonstrates the usage of SAMD chip to further reduce the power usage of the Tian
   board. This method can be applied to any board with companion chips which expose a method 
   (via direct pin interrupt or via a command) to enter and exit standby.
-  Sleep modes allow a significant drop in the power usage of a board while it does nothing waiting for an event to happen. Battery powered application can take advantage of these modes to enhance battery life significantly.
+  Sleep modes allow a significant drop in the power usage of a board while it does nothing waiting for an event to happen. Battery powered applications can take advantage of these modes to enhance battery life significantly.
 
-  In this sketch, the internal RTC of SAMD chip will wake up the processor every 20 seconds.
+  In this sketch, the internal RTC of the SAMD chip will wake up the processor every 20 seconds.
   Before going to sleep, the SAMD chip tells the MIPS CPU to standby too.
   Please note that, if the processor is sleeping, a new sketch can't be uploaded. To overcome this, manually reset the board (usually with a single or double tap to the RESET button)
 

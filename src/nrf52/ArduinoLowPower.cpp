@@ -64,7 +64,7 @@ void ArduinoLowPowerClass::deepSleep() {
 	//this is achieved by disabling all peripheral that use it
 	NRF_UARTE0->ENABLE = UARTE_ENABLE_ENABLE_Disabled;								//disable UART
 	NRF_SAADC ->ENABLE = (SAADC_ENABLE_ENABLE_Disabled << SAADC_ENABLE_ENABLE_Pos);	//disable ADC
-	NRF_PWM0  ->ENABLE = (PWM_ENABLE_ENABLE_Disabled << PWM_ENABLE_ENABLE_Pos);		//disable all pwm instance
+	NRF_PWM0  ->ENABLE = (PWM_ENABLE_ENABLE_Disabled << PWM_ENABLE_ENABLE_Pos);		//disable all PWM instances
 	NRF_PWM1  ->ENABLE = (PWM_ENABLE_ENABLE_Disabled << PWM_ENABLE_ENABLE_Pos);
 	NRF_PWM2  ->ENABLE = (PWM_ENABLE_ENABLE_Disabled << PWM_ENABLE_ENABLE_Pos);
 	NRF_TWIM1 ->ENABLE = (TWIM_ENABLE_ENABLE_Disabled << TWIM_ENABLE_ENABLE_Pos);	//disable TWI Master
@@ -118,7 +118,7 @@ void ArduinoLowPowerClass::enableWakeupFrom(wakeup_reason peripheral, uint32_t p
 		nrf_lpcomp_config_t config={(nrf_lpcomp_ref_t)event, (nrf_lpcomp_detect_t)mode};
 		nrf_lpcomp_configure(&config);
 		if(pin<14 && pin>19)
-			return;	//no analog pin is choosen
+			return;	//no analog pin was chosen
 		nrf_lpcomp_input_select(aPin[pin-14]);
 		nrf_lpcomp_enable();
 		nrf_lpcomp_task_trigger(NRF_LPCOMP_TASK_START);

@@ -4,16 +4,16 @@
   Written by Chiara Ruggeri (chiara@arduino.org)
   
   This example for the Arduino Primo board shows how to use
-  low power library to enter in power off mode and save power.
-  This mode ensure the deepest power saving mode. If you need
+  Arduino Low Power library to enter in power off mode and save power.
+  This mode ensures the deepest power saving mode. If you need
   a faster response from the board use standby function instead.
   
   Please note that once exited from the deepest sleep mode the
   board will reset (so setup will be run again).
   
   The functions enableWakeupFrom set the peripheral that will wake up
-  the board. By calling it more than once you can choose more than
-  a wakeup source.
+  the board. By calling it more than once you can choose multiple
+  wakeup sources.
   The board will be reset when it wakes up from power off.
   You can use wakeUpCause() function to find out what signals woke up
   the board if you use more than one wakeUpBy.. function.
@@ -27,7 +27,7 @@
 // Pin used to wakeup the board
 const int digitalPin = 10;
 
-// Pin used in Compatarot module to wake up the board
+// Pin used in Comparator module to wake up the board
 const int analogPin = A0;
 
 
