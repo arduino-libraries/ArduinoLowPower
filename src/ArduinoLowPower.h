@@ -82,6 +82,10 @@ class ArduinoLowPowerClass {
 		#ifdef ARDUINO_ARCH_NRF52
 		void enableWakeupFrom(wakeup_reason peripheral, uint32_t pin = 0xFF, uint32_t event = 0xFF, uint32_t option = 0xFF);
 		wakeup_reason wakeupReason();
+		void powerOnWifi(void);
+		void powerOffWifi(void);
+		void enableStm32Sleep(void);
+		void disableStm32Standby(void);
 		#endif
 
 		#ifdef ARDUINO_ARCH_SAMD
