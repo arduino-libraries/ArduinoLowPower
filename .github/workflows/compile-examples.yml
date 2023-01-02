@@ -69,11 +69,6 @@ jobs:
               - name: arduino:samd
             sketch-paths: |
               - examples/TianStandby
-          - fqbn: arduino:nrf52:primo
-            platforms: |
-              - name: arduino:nrf52
-            sketch-paths: |
-              - examples/PrimoDeepSleep
 
     steps:
       - name: Checkout repository
